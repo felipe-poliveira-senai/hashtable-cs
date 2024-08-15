@@ -285,7 +285,7 @@ public static class StreamReaderExtensions
     /// <param name="hashAlgSeeder"></param>
     /// <param name="separator">Symbol that identifies cells in a CSV file content. Default value = ','</param>
     /// <returns></returns>
-    public static HashTable FromCsvToHashTable(this StreamReader reader, Func<HashAlgorithm> hashAlgSeeder, string separator = ",")
+    public static HashTable FromCsvToHashTable(this StreamReader reader, Func<HashAlgorithm> hashAlgSeeder, string separator = ",", int[]? cellIndexesUsedAsIdentifier = null, bool useFirstRowAsIdentifier = false)
     {
         // Create the Hash Table based on 
         HashTable? hashTable = null;
@@ -294,25 +294,79 @@ public static class StreamReaderExtensions
             // Split each line from the CSV file
             var lines = reader.ReadToEnd().ReplaceLineEndings().Split(Environment.NewLine);
             hashTable = new HashTable(hashAlgSeeder, lines.Length);
-            int rowIndex = 0;
+            int rowIndex = -1;
+
+            // Store the maximum value of the cellIndexesUsedAsIdentifier
+            int greaterCellIndexUsedAsIdentifier = (cellIndexesUsedAsIdentifier != null && cellIndexesUsedAsIdentifier.Length > 0) ? cellIndexesUsedAsIdentifier.Max() : 0;
+
+            // Store the cell identifiers
+            IList<string>? cellIdentifiers = null;
 
             var stopwatch = new Stopwatch();
             stopwatch.Start();
 
             foreach (var line in lines)
             {
+                // go to the next row
+                rowIndex++;
 
-                // for each line create a new HasTableRow
-                var row = hashTable.AddRow(rowIndex.ToString());
-                int cellIndex = 0;
+                // get all the cells from the current line
+                var cells = CsvUtils.ReadCsvLine(line, separator);
 
-                // And for each split value add it on the row
-                foreach (var cell in line.Split(separator))
+                // if the cells does not have any content go to the next
+                if (cells.Length == 0)
                 {
-                    row.Add(cellIndex.ToString(), Encoding.UTF8.GetBytes(cell));
+                    continue;
                 }
 
-                rowIndex++;
+                // If is the first row and the flag is marked as true use the first row only to set the identifiers
+                if (rowIndex == 0 && useFirstRowAsIdentifier)
+                {
+                    cellIdentifiers = cells.ToList();
+                    continue;
+                }
+
+                // This variable store the value used to identify the row as an id
+                string? rowId = null;
+
+                // If the cell indexes are defined and the greater value in the array is lesser than the number of cells
+                // in the row:
+                // Concat all the values from the current cells identified by the given id indexes to compose the 'rowId'
+                if (cellIndexesUsedAsIdentifier != null && greaterCellIndexUsedAsIdentifier < cells.Length)
+                {
+                    foreach (var cellIndexUsedAsIdentifier in cellIndexesUsedAsIdentifier)
+                    {
+                        rowId += cells[cellIndexUsedAsIdentifier];
+                    }
+                }
+
+                // if the rowId was not set use the rowIndex as a id
+                if (rowId == null)
+                {
+                    rowId = rowIndex.ToString();
+                }
+
+                // for each line create a new HasTableRow
+                var row = hashTable.AddRow(rowId);
+                int cellIndex = -1;
+
+                // And for each split value add it on the row
+                foreach (var cell in cells)
+                {
+                    // Go to the next cell
+                    cellIndex++;
+
+                    // If the cell identifiers are not null and
+                    // the current cell index is greater the amount of elements in the collection throw an exception
+                    if (cellIdentifiers != null && cellIndex >= cellIdentifiers.Count)
+                    {
+                        throw new Exception($"The number of cellIdentifiers are lesser than the current cellIndex: {cellIndex}");
+                    }
+
+                    // Set the cellId as the cellIdentifiers (if set) or the cellIndex and add the value in the row
+                    var cellId = (cellIdentifiers != null) ? cellIdentifiers[cellIndex] : cellIndex.ToString();
+                    row.Add(cellId, Encoding.UTF8.GetBytes(cell));
+                }
             }
             stopwatch.Stop();
             Console.WriteLine($"Took:\t\t\t\t{stopwatch.ElapsedMilliseconds} to parse csv content to HashTable");
