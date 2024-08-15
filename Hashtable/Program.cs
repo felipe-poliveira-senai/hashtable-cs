@@ -19,23 +19,39 @@ row2.Add("1", Encoding.UTF8.GetBytes("1"));
 
 System.Console.WriteLine($"HashTable.TableHash:\t{hashTable2.GetTableHash().ToHexString()}");
 
-#region SAMPLE CODE
-var sampleHashTableFromCsv = new StreamReader("C:\\tmp\\customers-100.csv")
-    .FromCsvToHashTable(
-        SHA256.Create, 
-        separator : ",", 
-        cellIndexesUsedAsIdentifier : [0], 
-        useFirstRowAsIdentifier : true
-    );
-var sampleHashTable2FromCsv = new StreamReader("C:\\tmp\\customers-100-2.csv")
-    .FromCsvToHashTable(
-        SHA256.Create, 
-        separator : ",", 
-        cellIndexesUsedAsIdentifier : [0], 
-        useFirstRowAsIdentifier : true
-    );
-var diffBetweenHashTables = sampleHashTableFromCsv.Difference(sampleHashTable2FromCsv);
-System.Console.WriteLine($"Has differences: {diffBetweenHashTables.HasDifferences()}");
-#endregion
+// #region SAMPLE CODE
+// var sampleHashTableFromCsv = new StreamReader("C:\\tmp\\customers-100.csv")
+//     .FromCsvToHashTable(
+//         SHA256.Create, 
+//         separator : ",", 
+//         cellIndexesUsedAsRowIdentifier : [0], 
+//         useFirstRowAsColumnIdentifier : true
+//     );
+// var sampleHashTable2FromCsv = new StreamReader("C:\\tmp\\customers-100-2.csv")
+//     .FromCsvToHashTable(
+//         SHA256.Create, 
+//         separator : ",", 
+//         cellIndexesUsedAsRowIdentifier : [0], 
+//         useFirstRowAsColumnIdentifier : true
+//     );
+// var diffBetweenHashTables = sampleHashTableFromCsv.Difference(sampleHashTable2FromCsv);
+// System.Console.WriteLine($"Has differences: {diffBetweenHashTables.HasDifferences()}");
+// #endregion
+
+var refEntradaNf = new StreamReader("C:\\tmp\\2-entrada nf.csv").FromCsvToHashTable(SHA256.Create, cellIndexesUsedAsRowIdentifier : [0, 5], ignoreDuplicatedRowIds: true);
+var otherEntradaNf = new StreamReader("C:\\tmp\\2-entrada nf-2.csv").FromCsvToHashTable(SHA256.Create, cellIndexesUsedAsRowIdentifier : [0, 5], ignoreDuplicatedRowIds: true);
+var difBetweenEntradaNfs = refEntradaNf.Difference(otherEntradaNf);
+
+System.Console.WriteLine($"HashTable1:\t{refEntradaNf.GetTableHash().ToHexString()}");
+System.Console.WriteLine($"HashTable2:\t{otherEntradaNf.GetTableHash().ToHexString()}");
+System.Console.WriteLine($"Has Differences:\t{difBetweenEntradaNfs.HasDifferences()}");
+
+if (difBetweenEntradaNfs.HasDifferences())
+{
+    foreach (var rowWithDiffEntry in difBetweenEntradaNfs.RowsWithDifferences)
+    {
+        System.Console.WriteLine($"Row[{rowWithDiffEntry.Key}: Diff: {rowWithDiffEntry.Value.DifferenceType}]");
+    }
+}
 
 

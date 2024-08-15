@@ -285,7 +285,14 @@ public static class StreamReaderExtensions
     /// <param name="hashAlgSeeder"></param>
     /// <param name="separator">Symbol that identifies cells in a CSV file content. Default value = ','</param>
     /// <returns></returns>
-    public static HashTable FromCsvToHashTable(this StreamReader reader, Func<HashAlgorithm> hashAlgSeeder, string separator = ",", int[]? cellIndexesUsedAsIdentifier = null, bool useFirstRowAsIdentifier = false)
+    public static HashTable FromCsvToHashTable(
+        this StreamReader reader, 
+        Func<HashAlgorithm> hashAlgSeeder, 
+        string separator = ",", 
+        int[]? cellIndexesUsedAsRowIdentifier = null, 
+        bool useFirstRowAsColumnIdentifier = false,
+        bool ignoreDuplicatedRowIds = false
+        )
     {
         // Create the Hash Table based on 
         HashTable? hashTable = null;
@@ -297,14 +304,10 @@ public static class StreamReaderExtensions
             int rowIndex = -1;
 
             // Store the maximum value of the cellIndexesUsedAsIdentifier
-            int greaterCellIndexUsedAsIdentifier = (cellIndexesUsedAsIdentifier != null && cellIndexesUsedAsIdentifier.Length > 0) ? cellIndexesUsedAsIdentifier.Max() : 0;
+            int greaterCellIndexUsedAsIdentifier = (cellIndexesUsedAsRowIdentifier != null && cellIndexesUsedAsRowIdentifier.Length > 0) ? cellIndexesUsedAsRowIdentifier.Max() : 0;
 
             // Store the cell identifiers
             IList<string>? cellIdentifiers = null;
-
-            var stopwatch = new Stopwatch();
-            stopwatch.Start();
-
             foreach (var line in lines)
             {
                 // go to the next row
@@ -320,7 +323,7 @@ public static class StreamReaderExtensions
                 }
 
                 // If is the first row and the flag is marked as true use the first row only to set the identifiers
-                if (rowIndex == 0 && useFirstRowAsIdentifier)
+                if (rowIndex == 0 && useFirstRowAsColumnIdentifier)
                 {
                     cellIdentifiers = cells.ToList();
                     continue;
@@ -332,9 +335,9 @@ public static class StreamReaderExtensions
                 // If the cell indexes are defined and the greater value in the array is lesser than the number of cells
                 // in the row:
                 // Concat all the values from the current cells identified by the given id indexes to compose the 'rowId'
-                if (cellIndexesUsedAsIdentifier != null && greaterCellIndexUsedAsIdentifier < cells.Length)
+                if (cellIndexesUsedAsRowIdentifier != null && greaterCellIndexUsedAsIdentifier < cells.Length)
                 {
-                    foreach (var cellIndexUsedAsIdentifier in cellIndexesUsedAsIdentifier)
+                    foreach (var cellIndexUsedAsIdentifier in cellIndexesUsedAsRowIdentifier)
                     {
                         rowId += cells[cellIndexUsedAsIdentifier];
                     }
@@ -344,6 +347,12 @@ public static class StreamReaderExtensions
                 if (rowId == null)
                 {
                     rowId = rowIndex.ToString();
+                }
+
+                // ignore duplicated row keys
+                if (ignoreDuplicatedRowIds && hashTable.RowsHashes.ContainsKey(rowId))
+                {
+                    continue;
                 }
 
                 // for each line create a new HasTableRow
@@ -368,8 +377,6 @@ public static class StreamReaderExtensions
                     row.Add(cellId, Encoding.UTF8.GetBytes(cell));
                 }
             }
-            stopwatch.Stop();
-            Console.WriteLine($"Took:\t\t\t\t{stopwatch.ElapsedMilliseconds} to parse csv content to HashTable");
         }
 
         return hashTable;

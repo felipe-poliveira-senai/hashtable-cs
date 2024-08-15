@@ -22,7 +22,7 @@ public static class CsvUtils
                         continue;
                     }
                     // If cur char is no blank append it and set the context to Simple
-                    else if (curChar != ' ')
+                    else if (curChar != ' ' && curChar != ',')
                     {
                         strBuilder.Append(curChar);
                         curContext = CsvLineContext.Simple;
@@ -67,6 +67,8 @@ public static class CsvUtils
                     if (curChar == '"')
                     {
                         curContext = CsvLineContext.EndOfString;
+                        csvCells.Add(strBuilder.ToString());
+                        strBuilder.Clear();
                     }
                     // If none of the above, keep adding the values
                     else
