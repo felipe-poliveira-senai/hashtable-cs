@@ -34,6 +34,36 @@ public class HashTable
         RowsHashes = new Dictionary<string, HashTableRow>(initialCapacity);
     }
 
+    public static HashTable FromHashTableRowSerializer(Func<HashAlgorithm> hashAlgSeeder, ICollection<IHashTableRowSerializer> data)
+    {
+        // The hash table that will be returned
+        var hashTable = new HashTable(hashAlgSeeder, data.Count);
+
+        // Mark the row index 
+        var rowIndex = -1;
+        foreach (var serializedData in data)
+        {
+            // Advance the row id
+            rowIndex++;
+
+            // The rowId will be the serializedData custom id or the rowId if not defined
+            string? rowId = serializedData.GetHashTableRowId();
+            if (rowId == null)
+            {
+                rowId = rowIndex.ToString();
+            }
+
+            // Create the row and add the values from the serializedData into it
+            var row = hashTable.AddRow(rowId);
+            foreach (var (colId, colValue) in serializedData.SerializeToHashTableRow())
+            {
+                row.Add(colId, colValue);
+            }
+        }
+
+        return hashTable;
+    }
+
     /// <summary>
     /// Create a HashTableRow into the HashTable
     /// </summary>
